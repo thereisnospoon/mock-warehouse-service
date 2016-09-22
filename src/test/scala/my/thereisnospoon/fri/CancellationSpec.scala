@@ -1,11 +1,7 @@
 package my.thereisnospoon.fri
 
-import scala.concurrent.duration._
-import akka.pattern.ask
-import akka.actor.{ActorIdentity, ActorSelection, Identify}
+import akka.actor.ActorSelection
 import my.thereisnospoon.fri.messages.Messages._
-
-import scala.concurrent.Await
 
 class CancellationSpec extends AbstractFriSpec {
 
@@ -21,8 +17,9 @@ class CancellationSpec extends AbstractFriSpec {
     val orderActorName = "CancellationSpec1"
     val orderActor = createOrderActorWithName(orderActorName)
     val consignmentSelection = ActorSelection(orderActor, ConsignmentCode)
-    consignmentSelection ! Cancel(ConsignmentCode)
-    consignmentSelection ! GetData
+    val consignmentActor = getActorRefBySelection(consignmentSelection)
+    consignmentActor ! Cancel(ConsignmentCode)
+    consignmentActor ! GetData
 
     expectMsgType[ConsignmentData].status should equal(ConsignmentStatus.Cancelled)
   }
@@ -32,12 +29,14 @@ class CancellationSpec extends AbstractFriSpec {
     val orderActorName = "CancellationSpec2"
     val orderActor = createOrderActorWithName(orderActorName)
     val consignmentSelection = ActorSelection(orderActor, ConsignmentCode)
-    consignmentSelection ! Pack(ConsignmentCode)
-    consignmentSelection ! GetData
+    val consignmentActor = getActorRefBySelection(consignmentSelection)
+
+    consignmentActor ! Pack(ConsignmentCode)
+    consignmentActor ! GetData
     expectMsgType[ConsignmentData].status should equal(ConsignmentStatus.Packed)
 
-    consignmentSelection ! Cancel(ConsignmentCode)
-    consignmentSelection ! GetData
+    consignmentActor ! Cancel(ConsignmentCode)
+    consignmentActor ! GetData
     expectMsgType[ConsignmentData].status should equal(ConsignmentStatus.Packed)
   }
 
@@ -47,7 +46,7 @@ class CancellationSpec extends AbstractFriSpec {
     val orderActor = createOrderActorWithName(orderActorName)
     val consignmentSelection = ActorSelection(orderActor, ConsignmentCode)
 
-    val consignmentActor = Await.result((consignmentSelection ? Identify(1)).mapTo[ActorIdentity], 5 seconds).ref.get
+    val consignmentActor = getActorRefBySelection(consignmentSelection)
 
     consignmentActor ! Pack(ConsignmentCode)
     consignmentActor ! Ship(ConsignmentCode)

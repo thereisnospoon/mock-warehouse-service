@@ -1,6 +1,6 @@
 package my.thereisnospoon.fri
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorIdentity, ActorRef, ActorSelection, ActorSystem, Identify}
 import akka.testkit.{ImplicitSender, TestKit}
 import my.thereisnospoon.fri.actors.OrderActor
 import my.thereisnospoon.fri.messages.Messages.{ConsignmentData, OrderData}
@@ -13,4 +13,13 @@ abstract class AbstractFriSpec extends TestKit(ActorSystem("TestSystem")) with I
 
   def createOrderActorWithName(orderActorName: String)(implicit consignmentDataList: List[ConsignmentData]) =
     system.actorOf(OrderActor.props(OrderData(orderActorName, consignmentDataList)), orderActorName)
+
+  def getActorRefBySelection(selection: ActorSelection): ActorRef = {
+
+    selection ! Identify(1)
+    expectMsgType[ActorIdentity].ref match {
+      case Some(actorRef) => actorRef
+      case _ => getActorRefBySelection(selection)
+    }
+  }
 }

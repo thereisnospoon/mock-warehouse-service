@@ -21,9 +21,10 @@ class ShippingSpec extends AbstractFriSpec {
 
     val orderActor = createOrderActorWithName("ShippingSpec1")
     val consignmentActorSelection = ActorSelection(orderActor, ConsignmentCode)
-    consignmentActorSelection ! Pack(ConsignmentCode)
-    consignmentActorSelection ! Ship(ConsignmentCode)
-    consignmentActorSelection ! GetData
+    val consignmentActor = getActorRefBySelection(consignmentActorSelection)
+    consignmentActor ! Pack(ConsignmentCode)
+    consignmentActor ! Ship(ConsignmentCode)
+    consignmentActor ! GetData
 
     val receivedConsignmentData = expectMsgType[ConsignmentData]
     receivedConsignmentData.status should equal(ConsignmentStatus.Shipped)
