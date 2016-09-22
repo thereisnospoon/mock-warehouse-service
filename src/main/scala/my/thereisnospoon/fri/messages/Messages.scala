@@ -1,8 +1,12 @@
 package my.thereisnospoon.fri.messages
 
+import akka.actor.ActorRef
+
 import scala.concurrent.duration._
 import akka.util.Timeout
 import my.thereisnospoon.fri.messages.Messages.ConsignmentStatus.ConsignmentStatus
+
+import scala.runtime.Nothing$
 
 object Messages {
 
@@ -29,9 +33,15 @@ object Messages {
 
   case object ShipEntry
 
-  case class PartiallyShip(data: ConsignmentData)
+  case class PartiallyShip(consignmentCode: String, entriesToShip: List[PartiallyShipEntry])
 
-  case class EntryPartiallyShipped(sku: String)
+  class ShippedStatusResponse
 
-  case class EntryFullyShipped(sku: String)
+  case class EntryPartiallyShipped(sku: String) extends ShippedStatusResponse
+
+  case class EntryFullyShipped(sku: String) extends ShippedStatusResponse
+
+  case class PartiallyShipEntry(sku: String, qty: Int)
+
+  case class EntriesShippedStatusReplies(replies: List[ShippedStatusResponse], originalSender: ActorRef)
 }

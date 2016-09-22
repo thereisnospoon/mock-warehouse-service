@@ -30,4 +30,22 @@ class ShippingSpec extends AbstractFriSpec {
     receivedConsignmentData.status should equal(ConsignmentStatus.Shipped)
     receivedConsignmentData.consignmentEntries.foreach(entry => entry.qty should equal(entry.shippedQty))
   }
+
+  "Packed consignment" should "be fully shipped after all partial shipments" in {
+
+    val orderActor = createOrderActorWithName("ShippingSpec2")
+    val consignmentActorSelection = ActorSelection(orderActor, ConsignmentCode)
+    val consignmentActor = getActorRefBySelection(consignmentActorSelection)
+    consignmentActor ! Pack(ConsignmentCode)
+    consignmentActor ! GetData
+    expectMsgType[ConsignmentData].status should equal(ConsignmentStatus.Packed)
+
+    val partialShipment1 = PartiallyShip(ConsignmentCode,
+      List(PartiallyShipEntry(Sku1, Qty1), PartiallyShipEntry(Sku2, Qty2 - 1)))
+
+    consignmentActor ! partialShipment1
+    expectMsgType[ConsignmentData].status should equal(ConsignmentStatus.PartiallyShipped)
+    consignmentActor ! PartiallyShip(ConsignmentCode, List(PartiallyShipEntry(Sku2, 1)))
+    expectMsgType[ConsignmentData].status should equal(ConsignmentStatus.Shipped)
+  }
 }

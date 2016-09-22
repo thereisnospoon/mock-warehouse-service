@@ -7,8 +7,17 @@ class ConsignmentEntryActor(private val sku: String, private val qty: Int, priva
   extends Actor {
 
   override def receive: Receive = {
+
     case GetData => sender() ! ConsignmentEntryData(sku, qty, shippedQty)
+
     case ShipEntry => shippedQty = qty
+
+    case PartiallyShipEntry(entrySku, qtyToShip) if entrySku == sku =>
+      shippedQty = Math.min(qty, shippedQty + qtyToShip)
+      if (shippedQty == qty)
+        sender() ! EntryFullyShipped(sku)
+      else
+        sender() ! EntryPartiallyShipped(sku)
   }
 }
 

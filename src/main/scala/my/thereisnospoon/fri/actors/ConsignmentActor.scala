@@ -1,9 +1,10 @@
 package my.thereisnospoon.fri.actors
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{Actor, ActorRef, ActorSelection, Props}
 import akka.pattern.ask
 import my.thereisnospoon.fri.messages.Messages._
 
+import scala.concurrent.Future
 import scala.concurrent.Future._
 
 class ConsignmentActor(private val code: String,
@@ -15,7 +16,10 @@ class ConsignmentActor(private val code: String,
   implicit val executionContext = system.dispatchers.lookup("akka.actor.default-dispatcher")
 
   private var status: ConsignmentStatus = Processing
-  private val consignmentEntries: List[ActorRef] = consignmentEntriesData.map(data => actorOf(ConsignmentEntryActor.props(data)))
+  private val consignmentEntries: List[ActorRef] = consignmentEntriesData.map(data =>
+    actorOf(ConsignmentEntryActor.props(data), data.sku))
+
+  private var fullyShippedEntries: Set[String] = Set()
 
   override def receive: Receive = respondWithData.orElse(processingStateHandler)
 
@@ -46,6 +50,29 @@ class ConsignmentActor(private val code: String,
       consignmentEntries.foreach(_ ! ShipEntry)
       status = Shipped
       become(respondWithData)
+
+    case PartiallyShip(consignmentCode, entriesToShip) if consignmentCode == code =>
+
+      val currentSender = sender()
+      val statusResponses: Future[List[ShippedStatusResponse]] = sequence(
+        entriesToShip.map(entry => ActorSelection(self, entry.sku) ? PartiallyShipEntry(entry.sku, entry.qty)))
+        .mapTo[List[ShippedStatusResponse]]
+
+      for (sr <- statusResponses) {
+        self ! EntriesShippedStatusReplies(sr, currentSender)
+      }
+
+    case EntriesShippedStatusReplies(statusResponses, originalSender) =>
+      fullyShippedEntries ++= statusResponses.collect({
+        case EntryFullyShipped(sku) => sku
+      })
+      if (fullyShippedEntries.size == consignmentEntries.length) {
+        status = Shipped
+        become(respondWithData)
+      } else {
+        status = PartiallyShipped
+      }
+      originalSender ! ConsignmentData(code, status, Nil)
   }
 }
 
